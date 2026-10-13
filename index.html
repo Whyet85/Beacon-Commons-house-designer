@@ -100,5 +100,76 @@ if (SUPABASE_PUBLISHABLE_KEY.includes('PASTE_')) {
   logout.addEventListener('click', async () => { await client.auth.signOut(); await update(); });
   client.auth.onAuthStateChange(() => { setTimeout(update,0); });
   update();
+  
+<script>
+(async () => {
+  const client = window.supabase.createClient(
+    "https://ufydnfjhycjhdwxfamtv.supabase.co",
+    "sb_publishable_XmSkql73XBrQORWDB16dDA_3LD1-ZyR"
+  );
+
+  const status = document.getElementById("status");
+  const saveButton = document.getElementById("save");
+  const viewer = document.getElementById("viewer");
+
+  async function connectHouse() {
+    const { data: { user } } = await client.auth.getUser();
+
+    if (!user) return;
+
+    const { data: house, error } = await client
+      .from("Houses")
+      .select("*")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (error || !house) {
+      status.textContent = "Your house could not be found.";
+      return;
+    }
+
+    viewer.value = house.username || "";
+
+    if (house.colors) {
+      for (const [part, color] of Object.entries(house.colors)) {
+        if (!(part in colorState)) continue;
+        if (!/^#[0-9a-f]{6}$/i.test(color)) continue;
+
+        colorState[part] = color;
+
+        const input = document.getElementById(part);
+        if (input) {
+          input.value = color;
+          if (input.nextElementSibling) {
+            input.nextElementSibling.textContent = color;
+          }
+        }
+      }
+      draw();
+    }
+
+    status.textContent = "Your house is connected!";
+
+    saveButton.onclick = async () => {
+      const { error: saveError } = await client
+        .from("Houses")
+        .update({ colors: { ...colorState } })
+        .eq("id", house.id)
+        .eq("owner_id", user.id);
+
+      status.textContent = saveError
+        ? "Save failed: " + saveError.message
+        : "Your house colors have been saved!";
+    };
+  }
+
+  client.auth.onAuthStateChange(() => {
+    setTimeout(connectHouse, 0);
+  });
+
+  await connectHouse();
+})();
+</script>
+
 }
 </script></html>
